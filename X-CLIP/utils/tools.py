@@ -3,6 +3,8 @@ import torch.distributed as dist
 import torch
 import clip
 import os
+import json
+import pandas as pd
 
 
 def reduce_tensor(tensor, n=None):
@@ -111,3 +113,15 @@ def generate_text(data):
     classes = torch.cat([clip.tokenize(text_aug.format(c), context_length=77) for i, c in data.classes])
 
     return classes
+
+
+def convert_json_to_csv(json_file, target_file):
+    data = json.load(open(json_file))
+    df = pd.DataFrame({"id": data.values(), "name": data.keys()})
+    df.to_csv(target_file, index=False)
+
+
+if __name__=="__main__":
+    source_file = "data/sthelse/compositional/labels.json"
+    target_file = "sthelse_com_labels.csv"
+    convert_json_to_csv(source_file, target_file)
