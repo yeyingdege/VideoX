@@ -1803,9 +1803,12 @@ class DecordInit:
             iob = self.tarfile.extractfile(video_name)
             iob = iob.read()
             file_obj = io.BytesIO(iob)
-        container = decord.VideoReader(file_obj, num_threads=self.num_threads)
-        results['video_reader'] = container
-        results['total_frames'] = len(container)
+        try:
+            container = decord.VideoReader(file_obj, num_threads=self.num_threads)
+            results['video_reader'] = container
+            results['total_frames'] = len(container)
+        except:
+            raise RuntimeError('Corrupted video: {}, cannot decode'.format(results['filename']))
         return results
 
     def __repr__(self):

@@ -189,6 +189,7 @@ class VideoDataset(BaseDataset):
             return self.load_json_annotations()
 
         video_infos = []
+        not_found = 0
         with open(self.ann_file, 'r') as fin:
             for line in fin:
                 line_split = line.strip().split()
@@ -201,7 +202,11 @@ class VideoDataset(BaseDataset):
                     label = int(label)
                 if self.data_prefix is not None:
                     filename = osp.join(self.data_prefix, filename)
+                if not os.path.exists(filename):
+                    not_found += 1
+                    continue
                 video_infos.append(dict(filename=filename, label=label, tar=self.use_tar_format))
+        print('{} video files not found'.format(not_found))
         return video_infos
 
 
