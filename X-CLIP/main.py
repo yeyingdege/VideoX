@@ -23,21 +23,21 @@ from models import xclip
 
 def parse_option():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', '-cfg', required=True, type=str, default='configs/k400/32_8.yaml')
+    parser.add_argument('--config', '-cfg', type=str, default='configs/k400/32_8.yaml')
     parser.add_argument(
         "--opts",
         help="Modify config options by adding 'KEY VALUE' pairs. ",
         default=None,
         nargs='+',
     )
-    parser.add_argument('--output', type=str, default="exp")
+    parser.add_argument('--output', type=str, default="exp/debug/")
     parser.add_argument('--resume', type=str)
     parser.add_argument('--pretrained', type=str)
-    parser.add_argument('--only_test', action='store_true')
-    parser.add_argument('--batch-size', type=int)
-    parser.add_argument('--accumulation-steps', type=int)
+    parser.add_argument('--only_test', action='store_true', default=False)
+    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--accumulation-steps', type=int, default=4)
 
-    parser.add_argument("--local_rank", type=int, default=-1, help='local rank for DistributedDataParallel')
+    parser.add_argument("--local_rank", type=int, default=0, help='local rank for DistributedDataParallel')
     args = parser.parse_args()
 
     config = get_config(args)
@@ -74,7 +74,7 @@ def main(config):
     lr_scheduler = build_scheduler(config, optimizer, len(train_loader))
     if config.TRAIN.OPT_LEVEL != 'O0':
         model, optimizer = amp.initialize(models=model, optimizers=optimizer, opt_level=config.TRAIN.OPT_LEVEL)
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[config.LOCAL_RANK], broadcast_buffers=False, find_unused_parameters=False)
+    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist.get_rank()], broadcast_buffers=False, find_unused_parameters=False)
 
     start_epoch, max_accuracy = 0, 0.0
 
@@ -92,7 +92,7 @@ def main(config):
         start_epoch, max_accuracy = load_checkpoint(config, model.module, optimizer, lr_scheduler, logger)
 
 
-    text_labels = generate_text(train_data)
+    text_labels = generate_text(train_data) # [400, 77]
     
     if config.TEST.ONLY_TEST:
         acc1 = validate(val_loader, text_labels, model, config)
@@ -250,9 +250,14 @@ if __name__ == '__main__':
         rank = int(os.environ["RANK"])
         world_size = int(os.environ['WORLD_SIZE'])
         print(f"RANK and WORLD_SIZE in environ: {rank}/{world_size}")
-    else:
-        rank = -1
-        world_size = -1
+    else: # use 1 gpu, for debug
+        os.environ["RANK"] = "0"
+        os.environ["WORLD_SIZE"] = "1"
+        os.environ["MASTER_ADDR"] = "127.0.0.1"
+        os.environ["MASTER_PORT"] = "29500"
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ['WORLD_SIZE'])
+        print(f"RANK and WORLD_SIZE in environ: {rank}/{world_size}")
     torch.cuda.set_device(args.local_rank)
     torch.distributed.init_process_group(backend='nccl', init_method='env://', world_size=world_size, rank=rank)
     torch.distributed.barrier(device_ids=[args.local_rank])
