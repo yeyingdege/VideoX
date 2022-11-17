@@ -8,3 +8,5 @@ einops
 termcolor
 timm
 regex
+yacs
+pandas
