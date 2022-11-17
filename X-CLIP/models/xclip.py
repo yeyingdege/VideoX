@@ -61,7 +61,7 @@ class XCLIP(CLIP):
             use_checkpoint=use_checkpoint,
         )
 
-        self.transformer = Transformer(
+        self.transformer = Transformer( # text encoding
             width=transformer_width,
             layers=transformer_layers,
             heads=transformer_heads,
@@ -87,8 +87,8 @@ class XCLIP(CLIP):
     def encode_image(self, image):
         return self.visual(image)
 
-    def encode_text(self, text):
-        x = self.token_embedding(text)
+    def encode_text(self, text):    # text token [400, 77]
+        x = self.token_embedding(text)  # [400, 77, 768]
         eos_indx = text.argmax(dim=-1)
         K, N1, C = x.shape
 
@@ -107,14 +107,14 @@ class XCLIP(CLIP):
         b,t,c,h,w = image.size()
         image = image.reshape(-1,c,h,w)
 
-        cls_features, img_features = self.encode_image(image)
+        cls_features, img_features = self.encode_image(image)   # [bt, 768], [bt, grid**2, 1024]
         img_features = self.prompts_visual_ln(img_features)
-        img_features = img_features @ self.prompts_visual_proj
+        img_features = img_features @ self.prompts_visual_proj  # [bt, grid**2, 768]
         
-        cls_features = cls_features.view(b, t, -1)
-        img_features = img_features.view(b,t,-1,cls_features.shape[-1])
+        cls_features = cls_features.view(b, t, -1)  # [b, t, 768]
+        img_features = img_features.view(b,t,-1,cls_features.shape[-1]) # [b, t, grid**2, 768]
         
-        video_features = self.mit(cls_features)
+        video_features = self.mit(cls_features)     # [b, 768]
 
         return video_features, img_features
 
@@ -128,21 +128,21 @@ class XCLIP(CLIP):
 
     def forward(self, image, text):
         b = image.shape[0]
-        video_features, img_features = self.encode_video(image) 
-        img_features = img_features.mean(dim=1, keepdim=False)
+        video_features, img_features = self.encode_video(image) # [b, 768], [b, t, grid**2, 768]
+        img_features = img_features.mean(dim=1, keepdim=False)  # [b, grid**2, 768]
 
         if self.use_cache:
             text_features = self.cache_text(text)
         else:
-            text_features = self.encode_text(text)
+            text_features = self.encode_text(text)  # [400, 768]
         
         text_features = text_features.unsqueeze(0).expand(b, -1, -1)
         text_features = text_features + self.prompts_generator(text_features, img_features)
            
-        video_features = video_features / video_features.norm(dim=-1, keepdim=True)
-        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        video_features = video_features / video_features.norm(dim=-1, keepdim=True) # [b, 768]
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)    # [b, 400, 768]
         logit_scale = self.logit_scale.exp()
-        logits = torch.einsum("bd,bkd->bk", video_features, logit_scale * text_features)
+        logits = torch.einsum("bd,bkd->bk", video_features, logit_scale * text_features) # [b, 400]
         
         return logits
 

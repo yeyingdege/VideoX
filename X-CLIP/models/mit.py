@@ -51,7 +51,7 @@ class MultiframeIntegrationTransformer(nn.Module):
             nn.init.zeros_(m.bias)
             nn.init.ones_(m.weight)
 
-    def forward(self, x):
+    def forward(self, x): # x: CLS_token [b, t, 768]
         ori_x = x
         x = x + self.positional_embedding
         x = x.permute(1, 0, 2)

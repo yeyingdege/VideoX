@@ -23,18 +23,18 @@ class MulitHeadAttention(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, q, k, v):
+    def forward(self, q, k, v): # q: text encoding; k, v: visual encoding
         B, N, C = q.shape
         B, M, C = k.shape
-        q = self.q_proj(q).reshape(B, N, self.num_heads, C // self.num_heads).permute(0,2,1,3)
-        k = self.k_proj(k).reshape(B, M, self.num_heads, C // self.num_heads).permute(0,2,1,3)
+        q = self.q_proj(q).reshape(B, N, self.num_heads, C // self.num_heads).permute(0,2,1,3) # [b, h, 400, c]
+        k = self.k_proj(k).reshape(B, M, self.num_heads, C // self.num_heads).permute(0,2,1,3) # [b, h, g**2, c]
         v = self.v_proj(v).reshape(B, M, self.num_heads, C // self.num_heads).permute(0,2,1,3)
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale
-        attn = attn.softmax(dim=-1)
+        attn = (q @ k.transpose(-2, -1)) * self.scale # [b, h, 400, g**2]
+        attn = attn.softmax(dim=-1) # norm across spacial grid
         attn = self.attn_drop(attn)
         
-        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C) # [b, 400, C]
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
@@ -62,7 +62,7 @@ class PromptGeneratorLayer(nn.Module):
             nn.Linear(d_model * 4, d_model)
         )
 
-    def forward(self, x, visual):
+    def forward(self, x, visual): # x: CLIP text encoding
         q = k = v = self.norm1(x)
         x = x + self.cross_attn(q, visual, visual)
         x = x + self.dropout(self.mlp(self.norm3(x)))
@@ -88,7 +88,7 @@ class VideoSpecificPrompt(nn.Module):
             nn.init.constant_(m.weight, 1.0)
 
     
-    def forward(self, text, visual):
+    def forward(self, text, visual): # text: [b, 400, 768], visual: [b, grid**2, 768]
         B, N, C = visual.shape
         visual = self.norm(visual)
         for layer in self.decoder:
