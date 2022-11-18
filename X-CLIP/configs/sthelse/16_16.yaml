@@ -1,0 +1,13 @@
+DATA:
+    ROOT: 'data/ssv2/videos'
+    TRAIN_FILE: 'data/ssv2/compositional/sthv2_com_videos_train.txt'
+    VAL_FILE: 'data/ssv2/compositional/sthv2_com_videos_val.txt'
+    DATASET: sthElse
+    NUM_FRAMES: 16
+    NUM_CLASSES: 174
+    LABEL_LIST: 'labels/sthelse_com_labels.csv'
+MODEL:
+    ARCH: ViT-B/16
+TRAIN:
+    BATCH_SIZE: 16
+    ACCUMULATION_STEPS: 8

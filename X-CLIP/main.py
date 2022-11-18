@@ -35,7 +35,7 @@ def parse_option():
     parser.add_argument('--pretrained', type=str)
     parser.add_argument('--only_test', action='store_true', default=False)
     parser.add_argument('--batch-size', type=int, default=8)
-    parser.add_argument('--accumulation-steps', type=int, default=4)
+    parser.add_argument('--accumulation-steps', type=int, default=8)
 
     parser.add_argument("--local_rank", type=int, default=0, help='local rank for DistributedDataParallel')
     args = parser.parse_args()
