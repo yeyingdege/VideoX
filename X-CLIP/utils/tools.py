@@ -4,6 +4,7 @@ import torch
 import clip
 import os
 import json
+import random
 import pandas as pd
 
 
@@ -119,6 +120,13 @@ def convert_json_to_csv(json_file, target_file):
     data = json.load(open(json_file))
     df = pd.DataFrame({"id": data.values(), "name": data.keys()})
     df.to_csv(target_file, index=False)
+
+
+def sample_debug_data(json_file):
+    data = json.load(open(json_file))
+    random.shuffle(data)
+    with open(json_file[:-5] + '-debug.json', 'w') as fp:
+        json.dump(data[:10000], fp)
 
 
 if __name__=="__main__":
